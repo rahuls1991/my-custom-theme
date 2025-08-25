@@ -42,10 +42,24 @@ jobs:
         id: get_version
         run: |
           VERSION=$(grep -i "Version:" style.css | awk '{print $2}')
+          if [ -z "$VERSION" ]; then
+            echo "❌ ERROR: No Version found in style.css"
+            exit 1
+          fi
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "Found version: $VERSION"
 
-      # 🔹 Step 5: Check if tag already exists
+      # 🔹 Step 5: Ensure version was updated in this commit
+      - name: Check if style.css version changed
+        run: |
+          if git diff --name-only HEAD~1 HEAD | grep -q "style.css"; then
+            echo "✅ style.css was modified in this commit"
+          else
+            echo "❌ ERROR: style.css version not updated in this commit."
+            exit 1
+          fi
+
+      # 🔹 Step 6: Check if tag already exists
       - name: Check if tag already exists
         id: check_tag
         run: |
@@ -56,7 +70,7 @@ jobs:
             echo "exists=false" >> $GITHUB_ENV
           fi
 
-      # 🔹 Step 6: Create Git tag (only if validation passed and tag doesn’t exist)
+      # 🔹 Step 7: Create Git tag (only if validation passed and tag doesn’t exist)
       - name: Create Git tag
         if: env.exists == 'false'
         run: |
@@ -66,7 +80,7 @@ jobs:
           git tag -a "$TAG" -m "Release $TAG"
           git push origin "$TAG"
 
-      # 🔹 Step 7: Create GitHub Release
+      # 🔹 Step 8: Create GitHub Release
       - name: Create GitHub Release
         if: env.exists == 'false'
         uses: softprops/action-gh-release@v2
