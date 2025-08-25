@@ -1,4 +1,4 @@
-name: Auto Release from style.css
+name: Auto Release Block Theme
 
 on:
   push:
@@ -15,6 +15,29 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # 🔹 Step 1: Validate PHP syntax
+      - name: Validate PHP
+        run: |
+          echo "Checking PHP syntax..."
+          find . -type f -name "*.php" -print0 | xargs -0 -n1 -P4 php -l
+
+      # 🔹 Step 2: Validate JSON files (theme.json, block patterns, etc.)
+      - name: Validate JSON
+        run: |
+          echo "Validating JSON files..."
+          find . -type f -name "*.json" -exec jq empty {} \;
+
+      # 🔹 Step 3: Validate block template HTML files
+      - name: Validate Block Templates
+        run: |
+          echo "Checking block templates..."
+          for file in $(find ./templates ./parts -type f -name "*.html"); do
+            if ! grep -q "<!-- wp:" "$file"; then
+              echo "⚠️ Warning: $file may not contain block markup"
+            fi
+          done
+
+      # 🔹 Step 4: Extract version from style.css
       - name: Extract version from style.css
         id: get_version
         run: |
@@ -22,6 +45,7 @@ jobs:
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           echo "Found version: $VERSION"
 
+      # 🔹 Step 5: Check if tag already exists
       - name: Check if tag already exists
         id: check_tag
         run: |
@@ -32,6 +56,7 @@ jobs:
             echo "exists=false" >> $GITHUB_ENV
           fi
 
+      # 🔹 Step 6: Create Git tag (only if validation passed and tag doesn’t exist)
       - name: Create Git tag
         if: env.exists == 'false'
         run: |
@@ -41,6 +66,7 @@ jobs:
           git tag -a "$TAG" -m "Release $TAG"
           git push origin "$TAG"
 
+      # 🔹 Step 7: Create GitHub Release
       - name: Create GitHub Release
         if: env.exists == 'false'
         uses: softprops/action-gh-release@v2
